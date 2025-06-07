@@ -3,6 +3,8 @@ library(scales)
 library(readxl)
 library(lmerTest)
 library(skimr)
+library(psych)
+
 
 # Leer datos desde Excel y quitar primera fila de encabezados duplicados
 gdp      <- read_xlsx("PIB real 2005-2023.xlsx", sheet = 1, range = "A2:T35")[-1, ]
@@ -52,6 +54,7 @@ head(df)
 
 # Estadísticas descriptivas de los datos
 skim(df)
+describe(df)
 
 # Evolución del PIB Real por Estado (líneas)
 ggplot(df, aes(x = year, y = gdp, color = Estado)) +
