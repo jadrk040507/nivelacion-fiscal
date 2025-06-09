@@ -34,7 +34,16 @@ long <- function(df, value_name) {
       names_to  = "year",
       values_to = value_name
     ) %>%
-    mutate(year = as.integer(year))
+    mutate(year = as.integer(year)) %>% 
+    mutate(
+    Estado = str_squish(Estado),                              # quita espacios dobles y bordes
+    Estado = str_replace(Estado, "Ciudad de México 2_/",      # busca la etiqueta con “2_/”
+                            "Ciudad de México"),              # y la reemplaza con la correcta
+    Estado = str_replace(Estado, "Baja Californa",            # busca la etiqueta con "Baja Californa"
+                            "Baja California"),               # y la reemplaza con la correcta
+    Estado = str_replace(Estado, "Michoacan",                 # busca la etiqueta con "Baja Californa"
+                            "Michoacán")                      # y la reemplaza con la correcta
+  )
 }
 
 # Aplicar pivot para cada data.frame usando su nombre como columna de valores
@@ -48,6 +57,8 @@ df <- reduce(long_list, full_join, by = c("Estado", "year")) %>%
         gdppc = gdp / pop * 1000000,
         gdppc_mp = gdp_mp / pop * 1000000
     )
+
+write.csv(df, "participaciones-federales.csv", row.names = FALSE)
 
 # Revisar resultado
 head(df)
