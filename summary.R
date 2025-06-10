@@ -3,24 +3,17 @@
 # ──────────────────────────────────────────────────────────────────────────────
 
 # 1. CARGAR PAQUETES Y DATOS ---------------------------------------------
-# instala si es necesario:
-# install.packages(c(
-#   "tidyverse","lubridate","lme4","performance",
-#   "car","lmtest","GGally","sjPlot","spdep","plm","gridExtra"))
-
 library(tidyverse)
 library(readxl)
 library(skimr)
 library(psych)
-library(lubridate)
 library(lme4)
-library(performance)
+library(robustlmm)
 library(lmtest)
 library(GGally)
 library(sjPlot)
 library(plm)
 library(gridExtra)
-# library(spdep)
 
 # Leer datos desde Excel y quitar primera fila de encabezados duplicados
 gdp      <- read_xlsx("PIB real 2005-2023.xlsx", sheet = 1, range = "A2:T35")[-1, ]
@@ -189,13 +182,68 @@ lme4::ranef(mixed)
 # Visualizar efectos aleatorios
 plot_model(
   mixed,
-  type        = "re",
-  show.values = TRUE,
-  colors      = c("red", "black"),      # all points & whiskers in black :contentReference[oaicite:2]{index=2}
-  vline.color = "#00000084"      # draws the zero‐line in black
+  type          = "re",        # random‐effects forest plot
+  sort.est      = "lgdp_c",        # sort by estimate
+  show.values   = T,        # label each point
+  colors        = "bw",     # single‐colour points & whiskers
+  vline.color   = "black",     # vertical zero line
+  ci.style      = "whisker",   # whisker‐style CIs
+  dot.size      = 3,           # point size
+  line.size     = 1,           # whisker thickness
+  robust        = TRUE,         # use sandwich (robust) SEs
+  value.offset = 0.3        # offset the values to avoid overlap
 ) +
-  labs(title = "Efectos aleatorios por estado")
-  ggsave("modelo jerárquico.png", width = 8, height = 8, dpi = 300)
+  labs(
+    title    = "Estimated gdppc-slopes by Estado",
+    x        = "Slope on gdppc (with 95% CI)",
+    y        = "Estado"
+  )
+
+ggsave("modelo jerárquico - ambos.png", width = 8, height = 8, dpi = 300)
+
+
+
+# 1) fit a robust mixed‐model
+mixed_robust <- rlmer(
+  lgov ~ lgdp_c + (lgdp_c | Estado),
+  data = df
+)
+
+# 2) pull out the random‐slope BLUPs + their conditional variances
+re_list  <- ranef(mixed_robust, condVar = TRUE)
+re_mat   <- re_list$Estado
+postVar  <- attr(re_list$Estado, "postVar")
+
+# here “lgdp_c” is the 2nd column of re_mat
+ests <- re_mat[, "lgdp_c"]
+ses  <- sqrt(postVar["lgdp_c","lgdp_c", ]) 
+
+# 3) assemble & sort the data.frame
+df_plot <- data.frame(
+  Estado   = rownames(re_mat),
+  estimate = ests,
+  se       = ses
+)
+df_plot <- df_plot[order(df_plot$estimate), ]
+df_plot$Estado <- factor(df_plot$Estado, levels = df_plot$Estado)
+
+# 4) compute 95% CIs
+df_plot <- transform(df_plot,
+  lower = estimate - 1.96 * se,
+  upper = estimate + 1.96 * se
+)
+
+# 5) plot
+ggplot(df_plot, aes(x = estimate, y = Estado)) +
+  # zero‐line in every row
+  geom_vline(xintercept = 0, linetype = 1, color = "black", alpha = 0.5) +
+  # horizontal whiskers
+  geom_errorbarh(aes(xmin = lower, xmax = upper), height = 0.25, size = 0.5) +
+  # points
+  geom_point(size = 2) +
+  labs(title = "Estimated gdppc-slopes by Estado")
+
+ggsave("modelo jerárquico.png", width = 8, height = 8, dpi = 300)
 
 
 # 8. DIAGNÓSTICOS -------------------------------------------------------
