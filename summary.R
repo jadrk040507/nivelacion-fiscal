@@ -120,8 +120,15 @@ p2 <- ggplot(df, aes(lgov)) +
   geom_density(alpha = 0.3) +
   labs(title = "Log Participaciones per cápita")
 
+png(
+  filename = "distribucion.png",
+  width    = 8,
+  height   = 6,
+  units    = "in",
+  res      = 300
+)
 grid.arrange(p1, p2, nrow = 1)
-ggsave("distribución.png", width = 8, height = 6, dpi = 300)
+dev.off()
 
 ggplot(df, aes(Estado, govpc)) +
   geom_boxplot() +
