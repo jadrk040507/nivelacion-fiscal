@@ -127,7 +127,7 @@ ggplot(df, aes(Estado, govpc)) +
   geom_boxplot() +
   coord_flip() +
   labs(title = "Participaciones per cápita por estado")
-ggsave("boxplot participaciones.png", width = 8, height = 6, dpi = 300)
+ggsave("boxplot participaciones.png", width = 8, height = 8, dpi = 300)
 
 # 5. RELACIÓN PARTICIPACIONES ↔ PIB --------------------------------------
 ggplot(df, aes(lgdp, lgov)) +
