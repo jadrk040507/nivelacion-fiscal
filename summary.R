@@ -8,6 +8,7 @@ library(readxl)
 library(skimr)
 library(psych)
 library(lme4)
+library(broom.mixed)
 library(robustlmm)
 library(lmtest)
 library(GGally)
@@ -61,13 +62,12 @@ long_list <- Map(long, df_list, names(df_list))
 # Combinar con full_join por "Estado" y "year"
 df <- reduce(long_list, full_join, by = c("Estado", "year")) %>% 
     mutate(
-        gov_real = gov / deflator,
+        gov_real = gov / deflator * 100,
         govpc = gov_real / pop * 1000000,
         gdppc = gdp / pop * 1000000,
         gdppc_mp = gdp_mp / pop * 1000000
     )
 
-write.csv(df, "participaciones-federales.csv", row.names = FALSE)
 
 # Revisar resultado
 head(df)
@@ -77,7 +77,6 @@ skim(df)
 describe(df)
 
 # Ajusta la ruta a tu CSV
-df <- read_csv("participaciones-federales.csv")
 
 # 2. ESTRUCTURA Y COBERTURA DEL PANEL -----------------------------------
 df <- df %>%
@@ -99,6 +98,10 @@ df <- df %>%
     lgdp   = log(gdppc),
     lgdp_c = lgdp - mean(lgdp, na.rm = TRUE)
   )
+write.csv(df, "participaciones-federales.csv", row.names = FALSE)
+
+df <- read_csv("participaciones-federales.csv")
+
 
 # 4. ESTADÍSTICOS DESCRIPTIVOS Y DISTRIBUCIONES -------------------------
 describe(df %>% select(gdppc, govpc, lgov, lgdp))
@@ -154,7 +157,7 @@ ggsave("cor anual.png", width = 8, height = 6, dpi = 300)
 # 6. REGRESIÖN -----------------------------------------------------------
 df %>% select(gdp, pop, gov, gov_real, gdppc, govpc, lgov, lgdp) %>%
   GGally::ggpairs()
-  ggsave("descriptivo.png", width = 8, height = 6, dpi = 300)
+ggsave("descriptivo.png", width = 8, height = 6, dpi = 300)
 
 lm_global <- lm(govpc ~ gdppc, data = df)
 summary(lm_global)
@@ -204,45 +207,42 @@ ggsave("modelo jerárquico - ambos.png", width = 8, height = 8, dpi = 300)
 
 
 # 1) fit a robust mixed‐model
-mixed_robust <- rlmer(
-  lgov ~ lgdp_c + (lgdp_c | Estado),
-  data = df
+model_robust <- lmer(
+  lgov   ~ lgdp_c + (lgdp_c | Estado),
+  data   = df
 )
 
-# 2) pull out the random‐slope BLUPs + their conditional variances
-re_list  <- ranef(mixed_robust, condVar = TRUE)
-re_mat   <- re_list$Estado
-postVar  <- attr(re_list$Estado, "postVar")
+# 1) extraigo BLUPs y sus SEs
+re_df <- tidy(model_robust,
+              effects  = "ran_vals",
+              conf.int = FALSE) %>%   # no necesito CI por ahora
+  filter(term == "lgdp_c") %>%
+  rename(se_bj = std.error,
+         bj     = estimate)
 
-# here “lgdp_c” is the 2nd column of re_mat
-ests <- re_mat[, "lgdp_c"]
-ses  <- sqrt(postVar["lgdp_c","lgdp_c", ]) 
+# 2) valores fijos
+beta1   <- fixef(model_robust)["lgdp_c"]
+se_beta <- sqrt(vcov(model_robust)["lgdp_c", "lgdp_c"])
 
-# 3) assemble & sort the data.frame
-df_plot <- data.frame(
-  Estado   = rownames(re_mat),
-  estimate = ests,
-  se       = ses
+# 3) construyo data.frame con slope total y su se
+plot_df <- re_df %>%
+  mutate(
+    slope    = beta1 + bj,
+    se_slope = sqrt(se_beta^2 + se_bj^2),
+    ci_low   = slope - 1.96*se_slope,
+    ci_high  = slope + 1.96*se_slope
+  )
+
+# 4) gráfico
+ggplot(plot_df, aes(x = slope, y = fct_reorder(level, slope))) +
+  geom_point() +
+  geom_errorbarh(aes(xmin = ci_low, xmax = ci_high), height = 0.2) +
+  geom_vline(xintercept = 0, color = "black", alpha = 0.5) +
+  scale_x_continuous(breaks = scales::pretty_breaks(n = 10)) +
+  labs(
+    title = "Efecto total (fijo + aleatorio) por Estado",
+    x     = "Pendiente (coef fijo + aleatorio)"
 )
-df_plot <- df_plot[order(df_plot$estimate), ]
-df_plot$Estado <- factor(df_plot$Estado, levels = df_plot$Estado)
-
-# 4) compute 95% CIs
-df_plot <- transform(df_plot,
-  lower = estimate - 1.96 * se,
-  upper = estimate + 1.96 * se
-)
-
-# 5) plot
-ggplot(df_plot, aes(x = estimate, y = Estado)) +
-  # zero‐line in every row
-  geom_vline(xintercept = 0, linetype = 1, color = "black", alpha = 0.5) +
-  # horizontal whiskers
-  geom_errorbarh(aes(xmin = lower, xmax = upper), height = 0.25, size = 0.5) +
-  # points
-  geom_point(size = 2) +
-  labs(title = "Estimated gdppc-slopes by Estado")
-
 ggsave("modelo jerárquico.png", width = 8, height = 8, dpi = 300)
 
 
@@ -257,4 +257,6 @@ fe_mod <- plm(lgov ~ lgdp, data = df_plm, model = "within")
 re_mod <- plm(lgov ~ lgdp, data = df_plm, model = "random")
 
 phtest(fe_mod, re_mod)
+
+
 
