@@ -9,10 +9,12 @@
 #   "car","lmtest","GGally","sjPlot","spdep","plm","gridExtra"))
 
 library(tidyverse)
+library(readxl)
+library(skimr)
+library(psych)
 library(lubridate)
 library(lme4)
 library(performance)
-library(car)
 library(lmtest)
 library(GGally)
 library(sjPlot)
@@ -55,7 +57,7 @@ long <- function(df, value_name) {
                             "Ciudad de México"),              # y la reemplaza con la correcta
     Estado = str_replace(Estado, "Baja Californa",            # busca la etiqueta con "Baja Californa"
                             "Baja California"),               # y la reemplaza con la correcta
-    Estado = str_replace(Estado, "Michoacan",                 # busca la etiqueta con "Baja Californa"
+    Estado = str_replace(Estado, "Michoacan",                 # busca la etiqueta con "Michoacan"
                             "Michoacán")                      # y la reemplaza con la correcta
   )
 }
@@ -88,18 +90,16 @@ df <- read_csv("participaciones-federales.csv")
 df <- df %>%
   mutate(
     Estado = as.factor(Estado),
-    Año     = as.integer(year)
+    year     = as.integer(year)
   )
 
-obs_por_estado <- df %>% count(Estado) %>% arrange(n)
-print(obs_por_estado, n = Inf)
 
-df %>% summarise(Año_min = min(Año), Año_max = max(Año))
-df %>% group_by(Estado) %>% summarise(A_min = min(Año), A_max = max(Año))
+df %>% count(Estado) %>% arrange(n) %>% print(n = Inf)
+df %>% map_int(~ sum(is.na(.)))
+df %>% map_int(~ sum(. == 0))
+df %>% group_by(Estado) %>% reframe(A_min = min(year), A_max = max(year)) %>% print(n = Inf)
 
 # 3. LIMPIEZA Y TRANSFORMACIONES -----------------------------------------
-df <- df %>% filter(govpc > 0, gdppc > 0)
-
 df <- df %>%
   mutate(
     lgov   = log(govpc),
@@ -108,68 +108,67 @@ df <- df %>%
   )
 
 # 4. ESTADÍSTICOS DESCRIPTIVOS Y DISTRIBUCIONES -------------------------
-summary(df %>% select(gdppc, govpc, lgov, lgdp))
+describe(df %>% select(gdppc, govpc, lgov, lgdp))
 
 p1 <- ggplot(df, aes(lgdp)) +
-  geom_histogram(bins = 30) +
-  geom_density(aes(y = ..count..), alpha = 0.3) +
+  geom_histogram(aes(y = ..density..), bins = 30) +
+  geom_density(alpha = 0.3) +
   labs(title = "Log PIB per cápita")
 
 p2 <- ggplot(df, aes(lgov)) +
-  geom_histogram(bins = 30) +
-  geom_density(aes(y = ..count..), alpha = 0.3) +
+  geom_histogram(aes(y = ..density..), bins = 30) +
+  geom_density(alpha = 0.3) +
   labs(title = "Log Participaciones per cápita")
 
-print(grid.arrange(p1, p2, nrow = 1))
+grid.arrange(p1, p2, nrow = 1)
+ggsave("distribución.png", width = 8, height = 6, dpi = 300)
 
 ggplot(df, aes(Estado, govpc)) +
-  geom_boxplot(na.rm = TRUE) +
+  geom_boxplot() +
   coord_flip() +
   labs(title = "Participaciones per cápita por estado")
+ggsave("boxplot participaciones.png", width = 8, height = 6, dpi = 300)
 
 # 5. RELACIÓN PARTICIPACIONES ↔ PIB --------------------------------------
 ggplot(df, aes(lgdp, lgov)) +
   geom_point(alpha = 0.4) +
-  geom_smooth(method = "loess") +
+  geom_smooth() +
   labs(x = "log(PIB per cápita)", y = "log(Participaciones per cápita)")
+ggsave("lgdp vs lgov.png", width = 8, height = 6, dpi = 300)
 
 ggplot(df, aes(lgdp, lgov)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "lm", se = FALSE, color = "steelblue") +
   facet_wrap(~ Estado, scales = "free") +
   theme(strip.text = element_text(size = 6))
+ggsave("lgdp vs lgov por Estado.png", width = 8, height = 6, dpi = 300)
 
 corr_anual <- df %>%
-  group_by(Año) %>%
+  group_by(year) %>%
   summarise(cor = cor(lgdp, lgov, use = "pairwise.complete.obs"))
 
-ggplot(corr_anual, aes(Año, cor)) + geom_line() + geom_point() +
+ggplot(corr_anual, aes(year, cor)) + geom_line() + geom_point() +
   labs(title = "Correlación anual (elasticidades)")
+ggsave("cor anual.png", width = 8, height = 6, dpi = 300)
 
-# 6. CORRELACIONES Y MULTICOLINEALIDAD ----------------------------------
+# 6. REGRESIÖN -----------------------------------------------------------
 df %>% select(gdp, pop, gov, gov_real, gdppc, govpc, lgov, lgdp) %>%
   GGally::ggpairs()
+  ggsave("descriptivo.png", width = 8, height = 6, dpi = 300)
 
 lm_global <- lm(govpc ~ gdppc, data = df)
-# car::vif(lm_global)
+summary(lm_global)
 
-# 7. OUTLIERS E INFLUENCIA ----------------------------------------------
-infl <- influence.measures(lm_global)
-summary(infl)
-plot(lm_global, which = 5)
+png(filename = "regresión simple.png", width = 8, height = 6, units = "in", res = 300)
+par(mfrow = c(2, 2))
+plot(lm_global)
+dev.off()
 
 res_sd   <- sd(residuals(lm_global))
 outliers <- df[abs(residuals(lm_global)) > 3 * res_sd, ]
 print(outliers, n = Inf)
 
-# 8. HETEROCEDASTICIDAD --------------------------------------------------
-plot(lm_global$fitted.values, lm_global$residuals,
-     xlab = "Valores Ajustados", ylab = "Residuos")
-abline(h = 0, lty = 2)
-
-lmtest::bptest(lm_global)
-
-# 9. MODELO JERÁRQUICO Y ICC --------------------------------------------
+# 7. MODELO JERÁRQUICO Y ICC --------------------------------------------
 # Intento inicial: random slope con predictor centrado
 mixed <- lmer(
   lgov ~ lgdp_c + (lgdp_c | Estado),
@@ -180,26 +179,27 @@ mixed <- lmer(
 summary(mixed)$coefficients
 lme4::ranef(mixed)
 
-# ICC del modelo
-dprint <- performance::icc(mixed)
-print(dprint)
-
 # Visualizar efectos aleatorios
-sjPlot::plot_model(mixed, type = "re", show.values = TRUE) +
+plot_model(
+  mixed,
+  type        = "re",
+  show.values = TRUE,
+  colors      = c("red", "black"),      # all points & whiskers in black :contentReference[oaicite:2]{index=2}
+  vline.color = "#00000084"      # draws the zero‐line in black
+) +
   labs(title = "Efectos aleatorios por estado")
+  ggsave("modelo jerárquico.png", width = 8, height = 8, dpi = 300)
 
-# 10. DIAGNÓSTICOS -------------------------------------------------------
+
+# 8. DIAGNÓSTICOS -------------------------------------------------------
+par(mfrow = c(1,1))
 qqnorm(residuals(mixed)); qqline(residuals(mixed))
 qqnorm(ranef(mixed)$Estado[,"(Intercept)"]); qqline(ranef(mixed)$Estado[,"(Intercept)"])
 
-lmtest::dwtest(lm_global)
-
-# 11. HAUSMAN TEST (FE vs RE) -------------------------------------------
-df_plm <- pdata.frame(df, index = c("Estado", "Año"))
+# 9. HAUSMAN TEST (FE vs RE) -------------------------------------------
+df_plm <- pdata.frame(df, index = c("Estado", "year"))
 fe_mod <- plm(lgov ~ lgdp, data = df_plm, model = "within")
 re_mod <- plm(lgov ~ lgdp, data = df_plm, model = "random")
-ht <- phtest(fe_mod, re_mod)
-print(ht)
 
-# FIN – Interpreta resultados y elige FE o RE según Hausman y diagnóstico de singularidad.
+phtest(fe_mod, re_mod)
 
