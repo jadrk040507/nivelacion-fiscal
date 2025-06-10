@@ -83,17 +83,17 @@ plot_df <- tibble(
   slope   = fixef(model_robust)["lgdp_c"] +
             ranef(model_robust)$Estado[ , "lgdp_c"],
   se_boot = se_boot,
-  median = ci_boot[2,],
-  ci_low  = ci_boot[1, ],
-  ci_high = ci_boot[3, ]
-    # ci_low  = slope - 1.96 * se_boot,
-    # ci_high = slope + 1.96 * se_boot
+#   median = ci_boot[2,],
+#   ci_low  = ci_boot[1, ],
+#   ci_high = ci_boot[3, ]
+    ci_low  = slope - 1.96 * se_boot,
+    ci_high = slope + 1.96 * se_boot
 )
 
 print(plot_df)
 
 
-ggplot(plot_df, aes(x = median, y = fct_reorder(Estado, slope))) +
+ggplot(plot_df, aes(x = slope, y = fct_reorder(Estado, slope))) +
   geom_point() +
   geom_errorbarh(aes(xmin = ci_low, xmax = ci_high), height = 0.2) +
   geom_vline(xintercept = 0, color = "black", alpha = 0.5) +
