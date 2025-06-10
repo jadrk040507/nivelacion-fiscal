@@ -1,7 +1,9 @@
 library(lme4)
 library(dplyr)
+library(tidyverse)
 library(ggplot2)
 library(forcats)
+library(broom.mixed)
 
 df <- read_csv("participaciones-federales.csv")
 
@@ -53,19 +55,17 @@ ggsave("modelo jerárquico.png", width = 8, height = 8, dpi = 300)
 set.seed(2025)
 boot_fun_full <- function(mod) {
   # coef fijo
-  β1    <- fixef(mod)["lgdp_c"]
+  f    <- fixef(mod)["lgdp_c"]
   # BLUPs de pendiente
-  bj    <- ranef(mod)$Estado[ , "lgdp_c"]
+  r    <- ranef(mod)$Estado[ , "lgdp_c"]
   # devolvemos vector de longitud nEstados
-  β1 + bj
+  f + r
 }
 
 boot_out <- bootMer(
   model_robust,
   FUN    = boot_fun_full,
   nsim   = 1000,           # ≥ 1,000 réplicas para estabilidad
-  use.u = TRUE,           # usar BLUPs
-  type   = "parametric"
 )
 
 # Matriz boot_out$t de dim (nsim × nEstados)
