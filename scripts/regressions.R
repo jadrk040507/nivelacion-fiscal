@@ -5,7 +5,10 @@ library(modelsummary)
 
 # ---- Load Data ----
 df <- read_csv("participaciones-federales.csv") %>%
-  mutate(d2008 = if_else(year < 2008, 0, 1))
+  mutate(d2008 = if_else(year < 2008, 0, 1),
+         d2015 = if_else(year < 2015, 0, 1),
+         d2018 = if_else(year < 2018, 0, 1),
+         d2020 = if_else(year < 2020, 0, 1))
 
 head(df)
 
@@ -42,6 +45,19 @@ summary(model_d2008)
 model_d2008_state <- feols(govpc ~ gdppc + d2008 | Estado, data = df)
 summary(model_d2008_state)
 
+model_d2015_state <- feols(govpc ~ gdppc + d2015 | Estado, data = df)
+summary(model_d2015_state)
+
+model_d2018_state <- feols(govpc ~ gdppc + d2018 | Estado, data = df)
+summary(model_d2018_state)
+
+model_d2008_2015_2018_state <- feols(govpc ~ gdppc + d2008 + d2015 + d2018 | Estado, data = df)
+summary(model_d2008_2015_2018_state)
+
+model_d2008_2015_2020_state <- feols(govpc ~ gdppc + d2008 + d2015 + d2020 | Estado, data = df)
+summary(model_d2008_2015_2020_state)
+
+
 # ---- Model Summary Table ----
 modelsummary(
   list(
@@ -54,6 +70,8 @@ modelsummary(
     "Modelo con efectos de año"        = model_year,
     "Modelo con efectos fijos"         = model_fixed,
     "Modelo con d2008"                 = model_d2008,
-    "Modelo con d2008 y efectos fijos" = model_d2008_state
+    "Modelo con d2008 y efectos fijos" = model_d2008_state,
+    "Modelo con d2015 y efectos fijos" = model_d2015_state,
+    "Modelo con d2018 y efectos fijos" = model_d2018_state
   )
 )
