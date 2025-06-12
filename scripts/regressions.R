@@ -16,6 +16,15 @@ summary(model)
 model_log <- feols(log(govpc) ~ log(gdppc), data = df)
 summary(model_log)
 
+model_log_state <- feols(log(govpc) ~ log(gdppc) | Estado, data = df)
+summary(model_log_state)
+
+model_log_year <- feols(log(govpc) ~ log(gdppc) | year, data = df)
+summary(model_log_year)
+
+model_log_fixed <- feols(log(govpc) ~ log(gdppc) | Estado + year, data = df)
+summary(model_log_fixed)
+
 # ---- Fixed Effects ----
 model_state <- feols(govpc ~ gdppc | Estado, data = df)
 summary(model_state)
@@ -38,6 +47,9 @@ modelsummary(
   list(
     "Modelo lineal"                    = model,
     "Modelo logarítmico"               = model_log,
+    "Modelo logarítmico con efectos de estado" = model_log_state,
+    "Modelo logarítmico con efectos de año" = model_log_year,
+    "Modelo logarítmico con efectos fijos" = model_log_fixed,
     "Modelo con efectos de estado"     = model_state,
     "Modelo con efectos de año"        = model_year,
     "Modelo con efectos fijos"         = model_fixed,
