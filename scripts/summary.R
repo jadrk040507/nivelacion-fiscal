@@ -7,7 +7,7 @@ library(skimr)
 library(psych)
 library(lme4)
 library(broom.mixed)
-library(robustlmm)
+library(sandwich)
 library(lmtest)
 library(GGally)
 library(sjPlot)
@@ -108,6 +108,8 @@ mixed <- lmer(
 summary(mixed)$coefficients
 lme4::ranef(mixed)
 
+vcov_fun <- function(m) sandwich::vcovHC(m, type = "HC3")
+
 plot_model(
   mixed,
   type        = "re",
@@ -118,7 +120,7 @@ plot_model(
   ci.style    = "whisker",
   dot.size    = 3,
   line.size   = 1,
-  robust      = TRUE,
+  vcov.fun    = vcov_fun,
   value.offset = 0.3
 ) +
   labs(
@@ -144,7 +146,9 @@ re_df <- tidy(
   rename(se_bj = std.error, bj = estimate)
 
 beta1   <- fixef(model_robust)["lgdp_c"]
-se_beta <- sqrt(vcov(model_robust)["lgdp_c", "lgdp_c"])
+se_beta <- sqrt(
+  diag(vcov_fun(model_robust))  # matriz de covariancias robusta
+)["lgdp_c"]
 
 plot_df <- re_df %>%
   mutate(

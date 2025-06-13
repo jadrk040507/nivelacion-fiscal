@@ -39,39 +39,45 @@ model_fixed <- feols(govpc ~ gdppc | Estado + year, data = df)
 summary(model_fixed)
 
 # ---- Dummy Example ----
-model_d2008 <- feols(govpc ~ gdppc + d2008, data = df)
-summary(model_d2008)
-
-model_d2008_state <- feols(govpc ~ gdppc + d2008 | Estado, data = df)
+model_d2008_state <- feols(govpc ~ gdppc + d2008*gdppc | Estado, data = df)
 summary(model_d2008_state)
 
-model_d2015_state <- feols(govpc ~ gdppc + d2015 | Estado, data = df)
+model_d2015_state <- feols(govpc ~ gdppc + d2015*gdppc | Estado, data = df)
 summary(model_d2015_state)
 
-model_d2018_state <- feols(govpc ~ gdppc + d2018 | Estado, data = df)
+model_d2018_state <- feols(govpc ~ gdppc + d2018*gdppc | Estado, data = df)
 summary(model_d2018_state)
 
-model_d2008_2015_2018_state <- feols(govpc ~ gdppc + d2008 + d2015 + d2018 | Estado, data = df)
+model_d2020_state <- feols(govpc ~ gdppc + d2020*gdppc | Estado, data = df)
+summary(model_d2020_state)
+
+model_d2008_2015_2018_state <- feols(govpc ~ gdppc + d2008*gdppc + d2015*gdppc + d2018*gdppc | Estado, data = df)
 summary(model_d2008_2015_2018_state)
 
-model_d2008_2015_2020_state <- feols(govpc ~ gdppc + d2008 + d2015 + d2020 | Estado, data = df)
+model_d2008_2015_2020_state <- feols(govpc ~ gdppc + d2008*gdppc + d2015*gdppc + d2020*gdppc | Estado, data = df)
 summary(model_d2008_2015_2020_state)
 
 
 # ---- Model Summary Table ----
 modelsummary(
   list(
-    "Modelo lineal"                    = model,
-    "Modelo logarítmico"               = model_log,
-    "Modelo logarítmico con efectos de estado" = model_log_state,
-    "Modelo logarítmico con efectos de año" = model_log_year,
-    "Modelo logarítmico con efectos fijos" = model_log_fixed,
-    "Modelo con efectos de estado"     = model_state,
-    "Modelo con efectos de año"        = model_year,
-    "Modelo con efectos fijos"         = model_fixed,
-    "Modelo con d2008"                 = model_d2008,
-    "Modelo con d2008 y efectos fijos" = model_d2008_state,
-    "Modelo con d2015 y efectos fijos" = model_d2015_state,
-    "Modelo con d2018 y efectos fijos" = model_d2018_state
+    "Modelo lineal"                              = model,
+    "Modelo logarítmico"                         = model_log,
+    "Modelo logarítmico con efectos de estado"   = model_log_state,
+    "Modelo logarítmico con efectos de año"      = model_log_year,
+    "Modelo logarítmico con efectos fijos"       = model_log_fixed,
+    "Modelo con efectos de estado"               = model_state,
+    "Modelo con efectos de año"                  = model_year,
+    "Modelo con efectos fijos"                   = model_fixed,
+    "Modelo con d2008 y efectos fijos"           = model_d2008_state,
+    "Modelo con d2015 y efectos fijos"           = model_d2015_state,
+    "Modelo con d2018 y efectos fijos"           = model_d2018_state,
+    "Modelo con d2020 y efectos fijos"           = model_d2020_state,
+    "Modelo con d2008, d2015 y d2018"            = model_d2008_2015_2018_state,
+    "Modelo con d2008, d2015 y d2020"            = model_d2008_2015_2020_state
   )
 )
+
+
+
+
