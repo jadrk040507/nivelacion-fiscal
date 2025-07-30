@@ -34,6 +34,7 @@ long <- function(df, value_name) {
     mutate(year = as.integer(year)) %>%
     mutate(
       Estado = str_squish(Estado),                         # remove extra spaces
+      # remove footnote marks in some state names
       Estado = str_replace(Estado, "Ciudad de México 2_/", "Ciudad de México"),
       Estado = str_replace(Estado, "Baja Californa", "Baja California"),
       Estado = str_replace(Estado, "Michoacan", "Michoacán")
