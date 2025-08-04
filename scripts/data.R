@@ -7,6 +7,7 @@ library(psych)
 # ---- Read Excel Files ----
 gdp      <- read_xlsx("PIB real 2005-2023.xlsx", sheet = 1, range = "A2:T35")[-1, ]
 gdp_mp   <- read_xlsx("PIB real 2005-2023.xlsx", sheet = 3, range = "A2:T35")[-1, ]
+gdp_smp   <- read_xlsx("PIB real 2005-2023.xlsx", sheet = 4, range = "A2:T35")[-1, ]
 gov      <- read_xlsx("Participaciones federales 2005-2023.xlsx", sheet = 1, range = "A3:T36")[-1, ]
 deflator <- read_xlsx("Participaciones federales 2005-2023.xlsx", sheet = 2, range = "A5:T38")[-1, ]
 pop      <- read_xlsx("Participaciones federales 2005-2023.xlsx", sheet = 4, range = "A3:T36")[-1, ]
@@ -15,6 +16,7 @@ pop      <- read_xlsx("Participaciones federales 2005-2023.xlsx", sheet = 4, ran
 df_list <- list(
   gdp      = gdp,
   gdp_mp   = gdp_mp,
+  gdp_smp   = gdp_smp,
   gov      = gov,
   deflator = deflator,
   pop      = pop
@@ -49,7 +51,7 @@ df <- reduce(long_list, full_join, by = c("Estado", "year")) %>%
     gov_real  = gov / deflator * 100,
     govpc     = gov_real / pop * 1e6,
     gdppc     = gdp / pop * 1e6,
-    gdppc_mp  = gdp_mp / pop * 1e6
+    gdppc_smp  = gdp_smp / pop * 1e6
   )
 
 # ---- Quick Checks ----
@@ -70,12 +72,12 @@ df %>% map_int(~ sum(. == 0))
 df %>% group_by(Estado) %>% reframe(A_min = min(year), A_max = max(year)) %>% print(n = Inf)
 
 # ---- Transformations ----
-df <- df %>%
-  mutate(
-    lgov   = log(govpc),
-    lgdp   = log(gdppc),
-    lgdp_c = lgdp - mean(lgdp, na.rm = TRUE)
-  )
+# df <- df %>%
+#   mutate(
+#     lgov   = log(govpc),
+#     lgdp   = log(gdppc),
+#     lgdp_c = lgdp - mean(lgdp, na.rm = TRUE)
+#   )
 
 # ---- Save Clean Data ----
 write.csv(df, "participaciones-federales.csv", row.names = FALSE)
