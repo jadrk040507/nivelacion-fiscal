@@ -51,7 +51,8 @@ df <- reduce(long_list, full_join, by = c("Estado", "year")) %>%
     gov_real  = gov / deflator * 100,
     govpc     = gov_real / pop * 1e6,
     gdppc     = gdp / pop * 1e6,
-    gdppc_smp  = gdp_smp / pop * 1e6
+    gdppc_smp  = gdp_smp / pop * 1e6,
+    gdppc_mp  = gdp_mp / pop * 1e6
   )
 
 # ---- Quick Checks ----
